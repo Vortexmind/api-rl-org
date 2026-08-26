@@ -1,0 +1,3 @@
+name = "api-mock-backend"
+main = "src/index.ts"
+compatibility_date = "2025-05-19"

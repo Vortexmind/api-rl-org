@@ -1,0 +1,20 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "deploy:mock": "wrangler deploy -c workers/mock-api/wrangler.toml",
+    "deploy:limiter": "wrangler deploy -c workers/rate-limiter/wrangler.toml",
+    "deploy": "npm run deploy:mock && npm run deploy:limiter",
+    "dev:mock": "wrangler dev -c workers/mock-api/wrangler.toml",
+    "dev:limiter": "wrangler dev -c workers/rate-limiter/wrangler.toml",
+    "test": "bash run-tests.sh",
+    "jwt": "node jwt-demo/generate-jwt.js",
+    "jwt:keys": "node jwt-demo/generate-keys.js"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250519.0",
+    "typescript": "^5.4.5",
+    "wrangler": "^4.0.0"
+  }
+}

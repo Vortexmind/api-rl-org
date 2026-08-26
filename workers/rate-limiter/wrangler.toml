@@ -1,0 +1,20 @@
+name = "api-rate-limiter"
+main = "src/index.ts"
+compatibility_date = "2025-05-19"
+# Set your Cloudflare account ID here, or omit this line if you use `wrangler login`.
+
+routes = [
+  { pattern = "api.humorous-jargon.sxpdemo.com", custom_domain = true }
+]
+
+[[services]]
+binding = "MOCK_API"
+service = "api-mock-backend"
+
+[[ratelimits]]
+name = "ORG_RATE_LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 10
+  period = 60

@@ -1,0 +1,425 @@
+openapi: 3.0.3
+
+info:
+  title: Device Management API (PoC)
+  version: 1.0.0
+  description: >
+    Mock backend for the api-rate-limiter PoC. This Worker simulates a device
+    management REST API for an IoT platform. It is invoked exclusively via a
+    Cloudflare Workers service binding from the `api-rate-limiter` Worker and
+    is never reachable directly from the internet.
+
+    Rate limiting and authentication are enforced upstream by `api-rate-limiter`
+    before any request reaches this Worker. The security schemes documented here
+    describe the contracts that clients must satisfy at the gateway layer.
+
+    JWT validation is performed at the Cloudflare edge by API Shield before the
+    request reaches the Worker. Invalid, expired, or tampered JWTs are blocked
+    at the edge; the Worker only decodes the JWT to extract the `organizationId`
+    claim for rate-limit keying.
+
+servers:
+  - url: https://api.humorous-jargon.sxpdemo.com
+    description: PoC sandbox
+
+x-rate-limiting:
+  description: >
+    All requests are subject to per-organization rate limiting enforced by the
+    `api-rate-limiter` gateway Worker before they reach this mock backend.
+  limit: 10
+  period: 60
+  periodUnit: seconds
+  keyExtraction:
+    jwt:
+      description: >
+        When the client presents a Bearer token, the gateway decodes the JWT
+        payload (without signature verification in this PoC) and reads the
+        `organizationId` claim. That claim value becomes the rate-limit key,
+        so every organization has its own independent counter regardless of
+        which URL path is used.
+      claim: organizationId
+      header: Authorization
+      scheme: Bearer
+    apiKey:
+      description: >
+        When no Bearer token is present, the gateway extracts the `{orgId}`
+        path segment from `/api/{orgId}/...` and uses it as the rate-limit key.
+        This covers all API Key authenticated requests without requiring the
+        gateway to know the set of valid organization IDs in advance.
+      source: urlPath
+      segment: 2
+  isolation: >
+    Rate limit counters are scoped per organization. Exhausting the quota for
+    one organization does not affect any other organization.
+
+tags:
+  - name: Devices
+    description: Device inventory and registration endpoints
+
+paths:
+  /api/{orgId}/devices:
+    parameters:
+      - $ref: "#/components/parameters/orgId"
+
+    get:
+      summary: List devices for an organization
+      description: >
+        Returns the full list of devices registered to the specified organization.
+        In this PoC the device list is static mock data; the `orgId` field on
+        each returned device is populated from the resolved organization ID.
+      operationId: listDevices
+      tags:
+        - Devices
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      responses:
+        "200":
+          description: Array of devices belonging to the organization
+          headers:
+            X-Org-Id:
+              $ref: "#/components/headers/X-Org-Id"
+            X-Mock-Endpoint:
+              $ref: "#/components/headers/X-Mock-Endpoint"
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Device"
+              example:
+                - deviceId: DL-001
+                  model: DL-AXIST
+                  status: online
+                  orgId: org-alpha
+                - deviceId: DL-002
+                  model: DL-Gryphon
+                  status: offline
+                  orgId: org-alpha
+                - deviceId: DL-003
+                  model: DL-Memor
+                  status: maintenance
+                  orgId: org-alpha
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/RateLimiterUnavailable"
+        "502":
+          $ref: "#/components/responses/UpstreamUnavailable"
+
+    post:
+      summary: Register a new device
+      description: >
+        Registers a new device for the specified organization. In this PoC the
+        request body is accepted but ignored; the response always returns a
+        fixed mock device with `deviceId: DL-NEW` and `status: provisioning`.
+      operationId: createDevice
+      tags:
+        - Devices
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        description: >
+          Device registration payload. Accepted but not processed in this PoC.
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Arbitrary device registration fields (ignored in PoC)
+      responses:
+        "201":
+          description: Device registered successfully (mock response)
+          headers:
+            X-Org-Id:
+              $ref: "#/components/headers/X-Org-Id"
+            X-Mock-Endpoint:
+              $ref: "#/components/headers/X-Mock-Endpoint"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+              example:
+                deviceId: DL-NEW
+                model: DL-Generic
+                status: provisioning
+                orgId: org-alpha
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/RateLimiterUnavailable"
+        "502":
+          $ref: "#/components/responses/UpstreamUnavailable"
+
+  /api/{orgId}/devices/{deviceId}:
+    parameters:
+      - $ref: "#/components/parameters/orgId"
+      - $ref: "#/components/parameters/deviceId"
+
+    get:
+      summary: Get a single device
+      description: >
+        Returns the device record for the specified `deviceId` within the given
+        organization. In this PoC only the three seeded device IDs (`DL-001`,
+        `DL-002`, `DL-003`) are recognized; any other value returns 404.
+      operationId: getDevice
+      tags:
+        - Devices
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      responses:
+        "200":
+          description: Device record
+          headers:
+            X-Org-Id:
+              $ref: "#/components/headers/X-Org-Id"
+            X-Mock-Endpoint:
+              $ref: "#/components/headers/X-Mock-Endpoint"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Device"
+              example:
+                deviceId: DL-001
+                model: DL-AXIST
+                status: online
+                orgId: org-alpha
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimitExceeded"
+        "500":
+          $ref: "#/components/responses/RateLimiterUnavailable"
+        "502":
+          $ref: "#/components/responses/UpstreamUnavailable"
+
+components:
+  schemas:
+    Device:
+      type: object
+      description: Represents a registered IoT device
+      required:
+        - deviceId
+        - model
+        - status
+        - orgId
+      properties:
+        deviceId:
+          type: string
+          description: Unique identifier for the device
+          example: DL-001
+        model:
+          type: string
+          description: Device model name
+          example: DL-AXIST
+        status:
+          type: string
+          description: >
+            Current operational status of the device. Known values in this PoC:
+            `online`, `offline`, `maintenance`, `provisioning`.
+          example: online
+        orgId:
+          type: string
+          description: >
+            Organization that owns this device. Populated from the resolved
+            organization ID at request time.
+          example: org-alpha
+
+    Error:
+      type: object
+      description: Generic error response body
+      required:
+        - error
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+          example: Not found
+
+    RateLimitError:
+      type: object
+      description: >
+        Error response returned by the upstream rate-limiter when the
+        per-organization request quota is exhausted.
+      required:
+        - error
+        - orgId
+        - method
+        - retryAfter
+      properties:
+        error:
+          type: string
+          example: Rate limit exceeded
+        orgId:
+          type: string
+          description: Organization ID whose quota was exhausted
+          example: org-alpha
+        method:
+          type: string
+          description: >
+            Authentication method used to resolve the organization ID.
+            One of `jwt`, `apikey`, or `ip`.
+          enum:
+            - jwt
+            - apikey
+            - ip
+          example: apikey
+        retryAfter:
+          type: integer
+          description: Seconds until the rate limit window resets
+          example: 60
+
+    GatewayError:
+      type: object
+      description: >
+        Error response returned by the upstream rate-limiter when an internal
+        component (rate limiter binding or upstream service binding) is
+        unavailable.
+      required:
+        - error
+        - orgId
+      properties:
+        error:
+          type: string
+          example: Rate limiter unavailable
+        orgId:
+          type: string
+          description: Organization ID resolved from the request
+          example: org-alpha
+
+  parameters:
+    orgId:
+      name: orgId
+      in: path
+      required: true
+      description: >
+        Organization identifier. Used as the rate-limiting key by the upstream
+        gateway: for JWT-authenticated requests this value is cross-checked
+        against the `organizationId` claim in the Bearer token; for API Key
+        requests it is extracted directly from this URL path segment.
+      schema:
+        type: string
+        example: org-alpha
+
+    deviceId:
+      name: deviceId
+      in: path
+      required: true
+      description: >
+        Unique device identifier. In this PoC the only recognized values are
+        `DL-001`, `DL-002`, and `DL-003`. Any other value returns a 404
+        response.
+      schema:
+        type: string
+        enum:
+          - DL-001
+          - DL-002
+          - DL-003
+        example: DL-001
+
+  headers:
+    X-Org-Id:
+      description: >
+        The organization ID resolved from the request, as determined by the
+        upstream rate-limiter and forwarded to this Worker via the
+        `X-Org-Id` internal header.
+      schema:
+        type: string
+        example: org-alpha
+
+    X-Mock-Endpoint:
+      description: >
+        Identifies which route handler produced the response. Useful for
+        debugging and tracing in the PoC environment.
+      schema:
+        type: string
+        enum:
+          - devices-list
+          - device-create
+          - device-detail
+        example: devices-list
+
+  responses:
+    NotFound:
+      description: The requested resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: Not found
+
+    RateLimitExceeded:
+      description: >
+        Per-organization rate limit exceeded. Returned by the upstream
+        `api-rate-limiter` Worker, not by this mock backend. The
+        `Retry-After` header indicates how many seconds to wait before
+        retrying.
+      headers:
+        Retry-After:
+          description: Seconds until the rate limit window resets
+          schema:
+            type: integer
+            example: 60
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RateLimitError"
+          example:
+            error: Rate limit exceeded
+            orgId: org-alpha
+            method: apikey
+            retryAfter: 60
+
+    RateLimiterUnavailable:
+      description: >
+        The Workers Rate Limiting binding was unreachable. Returned by the
+        upstream `api-rate-limiter` Worker when the internal rate limit check
+        throws an exception.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GatewayError"
+          example:
+            error: Rate limiter unavailable
+            orgId: org-alpha
+
+    UpstreamUnavailable:
+      description: >
+        The mock backend service binding was unreachable. Returned by the
+        upstream `api-rate-limiter` Worker when the internal proxy call to
+        `api-mock-backend` throws an exception.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/GatewayError"
+          example:
+            error: Upstream API unavailable
+            orgId: org-alpha
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >
+        JWT Bearer token. The token payload must contain an `organizationId`
+        claim whose value identifies the organization making the request. The
+        upstream gateway extracts this claim to determine the rate-limit key.
+
+        API Shield validates the JWT signature, expiry, and integrity at the
+        Cloudflare edge before the request reaches the Worker. The Worker only
+        decodes the payload to read claims; it does not perform cryptographic
+        verification.
+
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: >
+        API Key passed via the `X-API-Key` request header. When this scheme
+        is used, the organization ID is not embedded in the key itself; instead
+        the upstream gateway reads the `{orgId}` segment from the URL path
+        (`/api/{orgId}/...`) to determine the rate-limit key.
