@@ -125,7 +125,7 @@ function main() {
   console.log("\n=== Decoded Payload ===");
   console.log(JSON.stringify(JSON.parse(base64urlDecode(token.split(".")[1]).toString()), null, 2));
   console.log("\n=== curl example ===");
-  console.log(`curl -H "Authorization: Bearer ${token}" https://api.humorous-jargon.sxpdemo.com/api/${orgId}/devices`);
+  console.log(`curl -H "Authorization: Bearer ${token}" https://api.example.com/api/${orgId}/devices`);
 }
 
 main();

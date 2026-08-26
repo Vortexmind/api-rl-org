@@ -75,7 +75,7 @@ A Cloudflare Workers proof of concept  demonstrating per-organization rate limit
    npm test
    ```
 
-   By default the tests target `api.humorous-jargon.sxpdemo.com`. Override the domain with:
+   By default the tests target `api.example.com`. Override the domain with:
 
    ```bash
    DOMAIN=your-domain.com npm test
@@ -100,11 +100,11 @@ npm install
 
 Deploy the mock API first, then the rate limiter. The order matters because the rate limiter references the mock API via a service binding.
 
-The rate limiter is configured to serve on the custom domain `api.humorous-jargon.sxpdemo.com` via the `routes` setting in `wrangler.toml`:
+The rate limiter is configured to serve on the custom domain `api.example.com` via the `routes` setting in `wrangler.toml`:
 
 ```toml
 routes = [
-  { pattern = "api.humorous-jargon.sxpdemo.com", custom_domain = true }
+  { pattern = "api.example.com", custom_domain = true }
 ]
 ```
 
@@ -133,7 +133,7 @@ npm run deploy:limiter
 This deploys `api-rate-limiter`, which includes:
 - A service binding to `api-mock-backend`
 - A rate limit binding (`ORG_RATE_LIMITER`) configured in `wrangler.toml`
-- A custom domain route for `api.humorous-jargon.sxpdemo.com`
+- A custom domain route for `api.example.com`
 
 ### Why order matters
 
@@ -169,7 +169,7 @@ DOMAIN=your-domain.com ./run-tests.sh
 
 ## Demo Scenarios
 
-Replace `api.humorous-jargon.sxpdemo.com` with your own domain if deploying to a different zone.
+Replace `api.example.com` with your own domain if deploying to a different zone.
 
 ### Scenario A: API Key auth, per-organization throttling
 
@@ -178,7 +178,7 @@ With API Key authentication, the organization ID comes from the URL path. All re
 ```bash
 # These all count against org-alpha
 for i in {1..12}; do
-  curl -s -w "\nHTTP %{http_code}\n" https://api.humorous-jargon.sxpdemo.com/api/org-alpha/devices
+  curl -s -w "\nHTTP %{http_code}\n" https://api.example.com/api/org-alpha/devices
 done
 # The 11th and 12th requests should return 429
 ```
@@ -197,7 +197,7 @@ JWT=$(npm run jwt org-beta | grep '^ey' | head -1)
 Then send requests with the signed JWT:
 
 ```bash
-for i in {1..12}; do curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $JWT" https://api.humorous-jargon.sxpdemo.com/api/org-beta/devices; done
+for i in {1..12}; do curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer $JWT" https://api.example.com/api/org-beta/devices; done
 # The 11th and 12th requests should return 429
 ```
 
@@ -208,11 +208,11 @@ Rate limits are scoped per organization. A 429 for one org does not affect anoth
 ```bash
 # Exhaust org-alpha's quota
 for i in {1..12}; do
-  curl -s -w "\nHTTP %{http_code}\n" https://api.humorous-jargon.sxpdemo.com/api/org-alpha/devices > /dev/null
+  curl -s -w "\nHTTP %{http_code}\n" https://api.example.com/api/org-alpha/devices > /dev/null
 done
 
 # Immediately request as org-beta: should return 200
-curl -s -w "\nHTTP %{http_code}\n" https://api.humorous-jargon.sxpdemo.com/api/org-beta/devices
+curl -s -w "\nHTTP %{http_code}\n" https://api.example.com/api/org-beta/devices
 ```
 
 ## Configuration

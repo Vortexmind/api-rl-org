@@ -21,7 +21,7 @@ for arg in "$@"; do
   fi
 done
 
-DOMAIN="${DOMAIN:-api.humorous-jargon.sxpdemo.com}"
+DOMAIN="${DOMAIN:-api.example.com}"
 BASE_URL="https://${DOMAIN}"
 
 # Extract limit from wrangler.toml if available, otherwise default to 10

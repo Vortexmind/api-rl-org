@@ -19,7 +19,7 @@ info:
     claim for rate-limit keying.
 
 servers:
-  - url: https://api.humorous-jargon.sxpdemo.com
+  - url: https://api.example.com
     description: PoC sandbox
 
 x-rate-limiting:

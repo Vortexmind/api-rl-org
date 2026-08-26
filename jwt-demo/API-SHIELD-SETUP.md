@@ -4,7 +4,7 @@ This guide configures API Shield JWT validation for the device management API Po
 
 ## Prerequisites
 
-- API Shield enabled on the zone (`humorous-jargon.sxpdemo.com`)
+- API Shield enabled on the zone (`api.example.com`)
 - The OpenAPI schema uploaded to Schema Validation (so endpoints appear in Endpoint Management)
 
 ## Files in this directory
@@ -58,7 +58,7 @@ This populates Endpoint Management with the three device endpoints.
 1. Go to **Security > API Shield > API Rules**
 2. Select **Create rule**
 3. Name: `device-api-jwt-validation`
-4. Hostname: `api.humorous-jargon.sxpdemo.com`
+4. Hostname: `api.example.com`
 5. Endpoints: select all three device endpoints (list, create, detail)
 6. Token configuration: `demo-jwt-config`
 7. Enforcement mode:
@@ -78,7 +78,7 @@ Copy the output token and use it in requests:
 
 ```bash
 curl -H "Authorization: Bearer <token>" \
-  https://api.humorous-jargon.sxpdemo.com/api/org-alpha/devices
+  https://api.example.com/api/org-alpha/devices
 ```
 
 ## Step 6: Test the dual-auth flow
@@ -87,21 +87,21 @@ curl -H "Authorization: Bearer <token>" \
 ```bash
 TOKEN=$(node generate-jwt.js org-alpha | grep '^ey' | head -1)
 curl -H "Authorization: Bearer $TOKEN" \
-  https://api.humorous-jargon.sxpdemo.com/api/org-alpha/devices
+  https://api.example.com/api/org-alpha/devices
 ```
 
 ### Invalid JWT (should be blocked at edge)
 ```bash
 # Tamper with the payload
 curl -H "Authorization: Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJkZW1vLWlzc3VlciJ9.INVALID" \
-  https://api.humorous-jargon.sxpdemo.com/api/org-alpha/devices
+  https://api.example.com/api/org-alpha/devices
 # Expected: 403 from API Shield (JWT validation failed)
 ```
 
 ### API Key auth (no JWT, should succeed)
 ```bash
 curl -H "X-API-Key: demo-key" \
-  https://api.humorous-jargon.sxpdemo.com/api/org-alpha/devices
+  https://api.example.com/api/org-alpha/devices
 ```
 
 ## Architecture with API Shield

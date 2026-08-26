@@ -4,7 +4,7 @@ compatibility_date = "2025-05-19"
 # Set your Cloudflare account ID here, or omit this line if you use `wrangler login`.
 
 routes = [
-  { pattern = "api.humorous-jargon.sxpdemo.com", custom_domain = true }
+  { pattern = "api.example.com", custom_domain = true }
 ]
 
 [[services]]
