@@ -7,46 +7,30 @@ A Cloudflare Workers proof of concept  demonstrating per-organization rate limit
 
 ## Architecture
 
+```mermaid
+flowchart LR
+    Client([Client]) -->|HTTPS /api/{orgId}/...| Edge
+
+    subgraph Cloudflare["Cloudflare Edge"]
+        Edge -->|Authorization: Bearer JWT| APIShield["API Shield<br/>JWT validation"]
+        Edge -->|X-API-Key or no auth| RateLimiter
+        APIShield -->|valid JWT| RateLimiter
+        APIShield -.->|invalid JWT: 403| Edge
+    end
+
+    RateLimiter["api-rate-limiter Worker"] -->|limit(orgId)| RateLimitBinding[(Workers Rate<br/>Limiting binding)]
+    RateLimitBinding -->|success| RateLimiter
+    RateLimitBinding -.->|429 Too Many Requests| Client
+
+    RateLimiter -->|proxy via MOCK_API<br/>service binding| MockAPI["api-mock-backend Worker"]
+    MockAPI -->|JSON response| RateLimiter
+    RateLimiter -->|200 OK| Edge
+    Edge --> Client
+
+    style APIShield fill:#f9f,stroke:#333
+    style RateLimitBinding fill:#bbf,stroke:#333
 ```
-                    +------------------+
-                    |   Client Request  |
-                    +--------+---------+
-                             |
-                             v
-              +------------------------------+
-              |   api-rate-limiter      |
-              |   (public-facing Worker)      |
-              |                               |
-              |  1. Extract orgId from:       |
-              |     - JWT Bearer token        |
-              |     - URL path /api/{orgId}   |
-              |     - Fallback: client IP     |
-              |                               |
-              |  2. Enforce rate limit via    |
-              |     ORG_RATE_LIMITER binding  |
-              |                               |
-              |  3. On 429: return error      |
-              |     On allowed: proxy to      |
-              |     mock-api service binding   |
-              +--------+----------+-----------+
-                       |          |
-              429 Too  |          | 200 OK + headers
-              Many     |          |
-              Requests |          v
-                       |   +------------------+
-                       |   | api-mock-backend |
-                       |   | (internal Worker)  |
-                       |   |                    |
-                        |   | Simulates         |
-                        |   | REST API endpoints |
-                       |   +------------------+
-                       |
-                       v
-              +------------------+
-              |  Response to     |
-              |  Client          |
-               +------------------+
-```
+
 
 ## Setup and Testing
 
@@ -56,11 +40,13 @@ A Cloudflare Workers proof of concept  demonstrating per-organization rate limit
    npm install
    ```
 
-2. Generate the local JWT demo keys:
+2. Generate the local JWT demo keys and a sample token:
 
    ```bash
-   npm run jwt:keys
+   npm run jwt -- org-alpha
    ```
+
+   This creates `jwt-demo/private-key.pem`, `jwt-demo/public-key.pem` and `jwt-demo/jwks.json` if they do not already exist.
 
 3. Authenticate Wrangler with your Cloudflare account:
 
@@ -188,13 +174,13 @@ done
 
 ### Scenario B: JWT auth, per-organization throttling
 
-With JWT authentication, the organization ID is read from the `organizationId` claim in the token payload. The Worker decodes the JWT (without verifying the signature in this PoC) to extract the claim.
+With JWT authentication, the organization ID is read from the `organizationId` claim in the token payload. API Shield validates the JWT signature, expiry and integrity at the Cloudflare edge before the request reaches the Worker; the Worker only decodes the payload to extract the claim.
 
 Generate a test JWT with an `organizationId` claim. First generate the demo keys, then create a signed ES256 token for `org-beta`:
 
 ```bash
-npm run jwt:keys
-JWT=$(npm run jwt org-beta | grep '^ey' | head -1)
+npm run jwt -- org-beta
+JWT=$(npm run jwt -- org-beta | grep '^ey' | head -1)
 ```
 
 Then send requests with the signed JWT:
@@ -239,7 +225,7 @@ Adjust these values to match your desired rate limit policy. The `namespace_id` 
 
 ## Production Notes
 
-- **JWT validation**: In this PoC, the rate limiter decodes the JWT payload without verifying the signature. In production, [API Shield](https://developers.cloudflare.com/api-shield/) would handle cryptographic JWT validation upstream. The Worker would then only need to decode the payload, since the signature is already verified.
+- **JWT validation**: API Shield validates the JWT signature, expiry and integrity at the Cloudflare edge before the request reaches the Worker. The Worker only decodes the payload to extract the `organizationId` claim.
 
 - **No-code alternative**: For the JWT authentication path, Cloudflare's native WAF Rate Limiting supports a `JWT claim of` characteristic. This lets you enforce per-organization rate limits without writing a custom Worker. The custom Worker approach in this PoC is preferred when you need fine-grained control over the extraction logic or when supporting both JWT and API Key auth methods together.
 

@@ -19,10 +19,10 @@ This guide configures API Shield JWT validation for the device management API Po
 
 ## Step 1: Generate the demo key pair
 
-Run the key generator to create a fresh ES256 key pair and the JWKS file used by API Shield:
+Run the JWT generator from the project root to create a fresh ES256 key pair, JWKS file and a sample signed token:
 
 ```bash
-npm run jwt:keys
+npm run jwt -- org-alpha
 ```
 
 This writes three files locally:
