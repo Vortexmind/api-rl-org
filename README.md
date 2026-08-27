@@ -27,8 +27,8 @@ flowchart LR
     RateLimiter -->|"200 OK"| Edge
     Edge --> Client
 
-    style APIShield fill:#f9f,stroke:#333
-    style RateLimitBinding fill:#bbf,stroke:#333
+    style APIShield fill:#e74c3c,stroke:#333,color:#fff
+    style RateLimitBinding fill:#3498db,stroke:#333,color:#fff
 ```
 
 
