@@ -9,22 +9,22 @@ A Cloudflare Workers proof of concept  demonstrating per-organization rate limit
 
 ```mermaid
 flowchart LR
-    Client([Client]) -->|HTTPS /api/{orgId}/...| Edge
+    Client((Client)) -->|"HTTPS /api/{orgId}/..."| Edge
 
-    subgraph Cloudflare["Cloudflare Edge"]
-        Edge -->|Authorization: Bearer JWT| APIShield["API Shield<br/>JWT validation"]
-        Edge -->|X-API-Key or no auth| RateLimiter
-        APIShield -->|valid JWT| RateLimiter
-        APIShield -.->|invalid JWT: 403| Edge
+    subgraph Cloudflare ["Cloudflare Edge"]
+        Edge -->|"Authorization: Bearer JWT"| APIShield["API Shield<br/>JWT validation"]
+        Edge -->|"X-API-Key or no auth"| RateLimiter
+        APIShield -->|"valid JWT"| RateLimiter
+        APIShield -.->|"invalid JWT: 403"| Edge
     end
 
-    RateLimiter["api-rate-limiter Worker"] -->|limit(orgId)| RateLimitBinding[(Workers Rate<br/>Limiting binding)]
-    RateLimitBinding -->|success| RateLimiter
-    RateLimitBinding -.->|429 Too Many Requests| Client
+    RateLimiter["api-rate-limiter Worker"] -->|"limit(orgId)"| RateLimitBinding[(Workers Rate<br/>Limiting binding)]
+    RateLimitBinding -->|"success"| RateLimiter
+    RateLimitBinding -.->|"429 Too Many Requests"| Client
 
-    RateLimiter -->|proxy via MOCK_API<br/>service binding| MockAPI["api-mock-backend Worker"]
-    MockAPI -->|JSON response| RateLimiter
-    RateLimiter -->|200 OK| Edge
+    RateLimiter -->|"proxy via MOCK_API<br/>service binding"| MockAPI["api-mock-backend Worker"]
+    MockAPI -->|"JSON response"| RateLimiter
+    RateLimiter -->|"200 OK"| Edge
     Edge --> Client
 
     style APIShield fill:#f9f,stroke:#333
