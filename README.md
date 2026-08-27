@@ -1,5 +1,8 @@
 # API Rate Limiting PoC
 
+> Provided as-is for educational and reference purposes. See [LICENSE](LICENSE) for details.
+
+
 A Cloudflare Workers proof of concept  demonstrating per-organization rate limiting on API endpoints. The PoC supports both JWT authentication (with `organizationId` in a claim) and API Key authentication (with `organizationId` in the URL path).
 
 ## Architecture
